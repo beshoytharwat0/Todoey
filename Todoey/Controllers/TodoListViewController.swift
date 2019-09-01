@@ -7,23 +7,36 @@
 //
 
 import UIKit
-class TodoListViewController: UITableViewController  {
+import CoreData
+
+
+class TodoListViewController: UITableViewController {
     
     var itemArray = [Item]()
     
-    // creat file path
-    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+    var selectedCategory : Category?{
+        didSet{
+            
+            loadItems()
+        }
+        
+    }
+    
+  
+     // how to creat context from AppDelegate class and make appdelegate to object to use in todoVC
+     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
    
     override func viewDidLoad() {
         super.viewDidLoad()
         
-      
-        print(dataFilePath)
+      // creat file path
+        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
         
-       
+      
 // how to load items from plist to upadte the tableview on screen
         
-        loadItems()
+               
+        
     }
     
       //MARK - tableview DataSourse Methods
@@ -64,35 +77,22 @@ class TodoListViewController: UITableViewController  {
     //MARK - tableView Delegate Methods func didselectrow with index
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
-       // print(itemArray[indexPath.row])
         
-        // 3shan a3ml 3lamt el check mark ✓
-       // tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
+    
+        // 3shan delete row from table view i hv to delete first from context then remove it from itemarray el bt3t3'l 3la el table view
+//        context.delete(itemArray[indexPath.row]) // delete from context mn data model el esmo Item
+//        itemArray.remove(at: indexPath.row) // remove it from itemarray elli b3mlha dispalytableview
+        
         
         // el coda da how nfas el code bt3 if done == false el done = true el f commit t7t
         itemArray[indexPath.row].done = !itemArray[indexPath.row].done
         
         saveItems()
-        // how to remove check mark ✓ if i tap again
-//
-//        if itemArray[indexPath.row].done == false{
-//
-//            itemArray[indexPath.row].done = true
-//        }else{
-//
-//            itemArray[indexPath.row].done = false
-//        }
+     
         
         tableView.reloadData()
         
-//        if (tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark){
-//
-//            tableView.cellForRow(at: indexPath)?.accessoryType = .none
-//        }else{
-//
-//            tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
-//        }
-        
+
         
         // lma b3ml select ll row byfd m3lm 3lih blon el rmady ana 3awz y3ml select lon rmady w y5tfi 3latol
         tableView.deselectRow(at: indexPath, animated: true)
@@ -110,10 +110,13 @@ class TodoListViewController: UITableViewController  {
             
             
             //-- what will happen once the usre click add item button on our Alert
-            // ana 3mlt add item mn alertTextField to arrayitem bs mn htzhr 7aga lazm a3ml reload table view
-            let newItem = Item()
-            newItem.title = textField.text!
+           
             
+           
+            let newItem = Item(context: self.context)
+            newItem.title = textField.text!
+            newItem.done = false
+            newItem.parentCategory = self.selectedCategory
             self.itemArray.append(newItem)
             
            
@@ -144,34 +147,65 @@ class TodoListViewController: UITableViewController  {
     
     func saveItems(){
         
-        let encoder = PropertyListEncoder()
+       
         
         do{
-            let data = try encoder.encode(itemArray)
-            try  data.write(to: dataFilePath!)
+             try context.save()
+            
         }catch{
             
-            print("Error encoding items array,\(error)")
+          print("Error Saving context , \(error)")
         }
             self.tableView.reloadData()
     }
     
-    func loadItems(){
+    
+    // for read data from datamodel (Item) to table view
+    // 3mlt func loaditms edtha 1 parameter wa7d lih esmin wa7d internal el hwa request w el tanty 5argi lma a3ml call ll func f ay mkan tany zay el call eli f func el searchbar
+    
+    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest()){
+
         
-        if  let data = try? Data(contentsOf: dataFilePath!){
-        
-      let decoder = PropertyListDecoder()
         do{
-        itemArray = try decoder.decode([Item].self, from: data   )
+        itemArray = try context.fetch(request)
             
         }catch{
             
-            print("Error decoding item array ,\(error)")
-            }
-    
+            print("Error fetchData \(error)")
+
         }
-    
+        tableView.reloadData()
     }
     
+}
+
+// MARK: Search bar methods
+
+extension TodoListViewController: UISearchBarDelegate{
     
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        // query the database//
+        // 1 2olth creat el request gbli el database mn intaty (Item)
+        let request : NSFetchRequest<Item> = Item.fetchRequest()
+        // 2 3mlt el query f3alt el query w creat el query w add el searchbar
+        request.predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+        // 3 farz el data el htgbha el query mn el searchbar
+        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+        // nw w hv to fetch the data
+        
+        loadItems(with: request)
+
+    }
+    
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        if searchBar.text?.count == 0 {
+            
+            loadItems()
+            DispatchQueue.main.async {
+                
+                searchBar.resignFirstResponder()
+            }
+            
+        }
+    }
 }
