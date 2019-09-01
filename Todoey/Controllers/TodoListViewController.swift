@@ -163,8 +163,19 @@ class TodoListViewController: UITableViewController {
     // for read data from datamodel (Item) to table view
     // 3mlt func loaditms edtha 1 parameter wa7d lih esmin wa7d internal el hwa request w el tanty 5argi lma a3ml call ll func f ay mkan tany zay el call eli f func el searchbar
     
-    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest()){
-
+    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest(), predicate: NSPredicate? = nil){
+        
+       let catPredicate = NSPredicate(format: "parentCategory.name MATCHES %@", selectedCategory!.name!)
+        
+        if let addtionalPredicate  = predicate{
+            
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [catPredicate, addtionalPredicate])
+        }else{
+            
+            request.predicate = catPredicate
+        }
+//        let compoundPredicate = NSCompoundPredicate(andPredicateWithSubpredicates: [catPredicate, predicate])
+//        request.predicate = compoundPredicate
         
         do{
         itemArray = try context.fetch(request)
@@ -188,12 +199,12 @@ extension TodoListViewController: UISearchBarDelegate{
         // 1 2olth creat el request gbli el database mn intaty (Item)
         let request : NSFetchRequest<Item> = Item.fetchRequest()
         // 2 3mlt el query f3alt el query w creat el query w add el searchbar
-        request.predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+        let predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
         // 3 farz el data el htgbha el query mn el searchbar
         request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
         // nw w hv to fetch the data
         
-        loadItems(with: request)
+        loadItems(with: request, predicate: predicate)
 
     }
     
