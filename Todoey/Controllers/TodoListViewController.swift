@@ -7,24 +7,24 @@
 //
 
 import UIKit
-import CoreData
+import RealmSwift
 
 
 class TodoListViewController: UITableViewController {
     
-    var itemArray = [Item]()
+    var todoItems : Results<Item>?
+    // creat new constant for realm
+    let realm = try! Realm()
+    
     
     var selectedCategory : Category?{
         didSet{
             
-            loadItems()
+          loadItems()
+            
         }
         
     }
-    
-  
-     // how to creat context from AppDelegate class and make appdelegate to object to use in todoVC
-     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
    
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -43,24 +43,21 @@ class TodoListViewController: UITableViewController {
     
  override  func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
     
-    let item = itemArray[indexPath.row]
+    // let cell = UITableViewCell(style: .default, reuseIdentifier: "ToDoItemCell")
+    let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
     
-    
-       // let cell = UITableViewCell(style: .default, reuseIdentifier: "ToDoItemCell")
-       let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
-    
+    if let item = todoItems?[indexPath.row] {
+        
         cell.textLabel?.text = item.title
+        
+        // how to opertor this code to make it short this if item.done
+        cell.accessoryType = item.done ? .checkmark : .none
+        
+    }else{
+        
+        cell.textLabel?.text = "No Items Added"
+    }
     
-    // how to opertor this code to make it short this if item.done
-     cell.accessoryType = item.done ? .checkmark : .none
-    
-//    if item.done == true {
-//        cell.accessoryType = .checkmark
-//
-//    }else{
-//
-//        cell.accessoryType = .none
-//    }
     
         return cell
     }
@@ -70,31 +67,27 @@ class TodoListViewController: UITableViewController {
  override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         
         
-        return itemArray.count
+        return todoItems?.count ?? 1
     }
     
     
     //MARK - tableView Delegate Methods func didselectrow with index
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        
-        
-    
-        // 3shan delete row from table view i hv to delete first from context then remove it from itemarray el bt3t3'l 3la el table view
-//        context.delete(itemArray[indexPath.row]) // delete from context mn data model el esmo Item
-//        itemArray.remove(at: indexPath.row) // remove it from itemarray elli b3mlha dispalytableview
-        
-        
-        // el coda da how nfas el code bt3 if done == false el done = true el f commit t7t
-        itemArray[indexPath.row].done = !itemArray[indexPath.row].done
-        
-        saveItems()
-     
-        
+        // update thr realm and order to chekc and uncheck items
+        if let item = todoItems?[indexPath.row]{
+            do{
+            try realm.write {
+                item.done = !item.done
+            
+            }
+            }catch{
+                
+                print("Errer Saving Done Status,\(error)")
+            }
+        }
         tableView.reloadData()
-        
-
-        
-        // lma b3ml select ll row byfd m3lm 3lih blon el rmady ana 3awz y3ml select lon rmady w y5tfi 3latol
+    
+    // lma b3ml select ll row byfd m3lm 3lih blon el rmady ana 3awz y3ml select lon rmady w y5tfi 3latol
         tableView.deselectRow(at: indexPath, animated: true)
     }
     
@@ -111,18 +104,22 @@ class TodoListViewController: UITableViewController {
             
             //-- what will happen once the usre click add item button on our Alert
            
+            if let currentCategory = self.selectedCategory{
+                do {
+               
+                    try self.realm.write {
+                    let newItem = Item()
+                    newItem.title = textField.text!
+                    newItem.dateCreat = Date()
+                    currentCategory.items.append(newItem)
+            }
+                }catch{
+                    
+                    print("Error saving new items,\(error)")
+                }
+            }
             
-           
-            let newItem = Item(context: self.context)
-            newItem.title = textField.text!
-            newItem.done = false
-            newItem.parentCategory = self.selectedCategory
-            self.itemArray.append(newItem)
-            
-           
-            
-          self.saveItems()
-            
+            self.tableView.reloadData()
             
         }
         let dismissAction = UIAlertAction(title: "Cancel", style: .cancel) { (cancel) in
@@ -145,17 +142,19 @@ class TodoListViewController: UITableViewController {
     
     //MARK - Model  save items methods
     
-    func saveItems(){
-        
-       
+    func saveItems(item : Item){
         
         do{
-             try context.save()
             
+            try realm.write {
+                realm.add(item)
+            }
         }catch{
             
-          print("Error Saving context , \(error)")
+            print("Error Saving data\(error)")
         }
+        
+  
             self.tableView.reloadData()
     }
     
@@ -163,28 +162,11 @@ class TodoListViewController: UITableViewController {
     // for read data from datamodel (Item) to table view
     // 3mlt func loaditms edtha 1 parameter wa7d lih esmin wa7d internal el hwa request w el tanty 5argi lma a3ml call ll func f ay mkan tany zay el call eli f func el searchbar
     
-    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest(), predicate: NSPredicate? = nil){
+    func loadItems(){
         
-       let catPredicate = NSPredicate(format: "parentCategory.name MATCHES %@", selectedCategory!.name!)
-        
-        if let addtionalPredicate  = predicate{
-            
-            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [catPredicate, addtionalPredicate])
-        }else{
-            
-            request.predicate = catPredicate
-        }
-//        let compoundPredicate = NSCompoundPredicate(andPredicateWithSubpredicates: [catPredicate, predicate])
-//        request.predicate = compoundPredicate
-        
-        do{
-        itemArray = try context.fetch(request)
-            
-        }catch{
-            
-            print("Error fetchData \(error)")
+        todoItems = selectedCategory?.items.sorted(byKeyPath: "title", ascending: true)
 
-        }
+
         tableView.reloadData()
     }
     
@@ -193,30 +175,22 @@ class TodoListViewController: UITableViewController {
 // MARK: Search bar methods
 
 extension TodoListViewController: UISearchBarDelegate{
-    
-    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-        // query the database//
-        // 1 2olth creat el request gbli el database mn intaty (Item)
-        let request : NSFetchRequest<Item> = Item.fetchRequest()
-        // 2 3mlt el query f3alt el query w creat el query w add el searchbar
-        let predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
-        // 3 farz el data el htgbha el query mn el searchbar
-        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
-        // nw w hv to fetch the data
-        
-        loadItems(with: request, predicate: predicate)
 
-    }
-    
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        todoItems = todoItems?.filter("title CONTAINS[cd] %@", searchBar.text!).sorted(byKeyPath: "dateCreat", ascending: true)
+        
+        tableView.reloadData()
+}
+
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         if searchBar.text?.count == 0 {
-            
+
             loadItems()
             DispatchQueue.main.async {
-                
+
                 searchBar.resignFirstResponder()
             }
-            
+
         }
     }
 }
