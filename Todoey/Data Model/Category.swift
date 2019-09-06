@@ -11,7 +11,8 @@ import RealmSwift
 
 class Category: Object {
     
-   @objc dynamic var name : String = ""
+    @objc dynamic var name : String = ""
+    @objc dynamic var color : String = ""
     
     // creat constant  itme htshil list of item objects then  initialize it as empaty list 
     let items = List<Item>()

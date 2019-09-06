@@ -9,6 +9,7 @@
 import UIKit
 import RealmSwift
 
+
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
@@ -18,10 +19,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
         // to print where is our realm file loaction
-      //  print(Realm.Configuration.defaultConfiguration.fileURL)
+       //  print(Realm.Configuration.defaultConfiguration.fileURL)
         
         do {
-            _ = try Realm()
+           let realm = try Realm()
            
         } catch{
             
